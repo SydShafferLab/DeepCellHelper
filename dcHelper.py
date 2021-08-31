@@ -40,6 +40,4 @@ def readTiffs(path,channels):
 
         array = np.stack(ims,0)
 
-        print(array.shape)
-
     return array
