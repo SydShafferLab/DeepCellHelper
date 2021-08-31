@@ -39,5 +39,7 @@ def readTiffs(path,channels):
             ims = [np.pad(im,((0,dims[0] - im.shape[0]),(0,dims[1] - im.shape[1]),(0,0))) if im.shape != dims else im for im in ims]
 
         array = np.stack(ims,0)
-        
+
+        print(array.shape)
+
     return array
