@@ -48,7 +48,7 @@ def RunDeepCell(path,nuc_channel,cyto_channel,objective):
 
     #perform segmentation
     if nuc_channel >= 0:
-        Nuc_labeled_im2 = NucSeg.predict(image[:,...,nuc_channel,None], image_mpp = resolution)
+        Nuc_labeled_im = NucSeg.predict(image[:,...,nuc_channel,None], image_mpp = resolution)
         #Nuc_labeled_im2 = MesSeg.predict(image, image_mpp = resolution, compartment='nuclear')
     else:
         Nuc_labeled_im = "no nuclear channel inputed"
@@ -71,10 +71,10 @@ def RunDeepCell(path,nuc_channel,cyto_channel,objective):
     #write tif files with masks
     if nuc_channel >= 0:
         #tifffile.imwrite(str(outpath+'nuc_mask.tif'), Nuc_labeled_im)
-        tifffile.imwrite(str(outpath+'_nuc_mask.tif'), Nuc_labeled_im2)
+        tifffile.imwrite(str(outpath+'_nuc_mask.tif'), Nuc_labeled_im)
 
     if cyto_channel >= 0:
         tifffile.imwrite(str(outpath+'_cyto_mask.tif'), Cyto_labeled_im)
         #tifffile.imwrite(str(outpath+'mesmer_cyto_mask.tif'), Cyto_labeled_im2)
 
-    return Nuc_labeled_im2, Cyto_labeled_im
+    return Nuc_labeled_im, Cyto_labeled_im
