@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -6,7 +7,6 @@ from matplotlib import pyplot as plt
 from ipywidgets import interact, interactive, fixed, interact_manual
 import ipywidgets as widgets
 from deepcell.applications import CytoplasmSegmentation
-#removed nuclear segmenter as it performs worse than mesmer, if you want to try it just uncoment all the lines associated with NuclearSegmentation
 from deepcell.applications import NuclearSegmentation
 from deepcell.applications import Mesmer
 import tifffile
@@ -14,7 +14,7 @@ import tifffile
 from dcHelper import readTiffs
 
 
-def RunDeepCell(path,nuc_channel,cyto_channel,objective):
+def RunDeepCell(path,nuc_channel,cyto_channel,objective,type):
 
     #Input Data
     if nuc_channel <=0:
@@ -41,15 +41,23 @@ def RunDeepCell(path,nuc_channel,cyto_channel,objective):
 
     #get weights for segmentation
     if nuc_channel >= 0:
-        NucSeg = NuclearSegmentation()
-        #MesSeg = Mesmer()
+        if type == 'TC':
+            NucSeg = NuclearSegmentation()
+        elif type == 'tissue':
+            MesSeg = Mesmer()
+        else:
+            print("input for type variable is unknown")
+            sys.exit()
+            
     if cyto_channel >= 0:
         CytoSeg = CytoplasmSegmentation()
 
     #perform segmentation
     if nuc_channel >= 0:
-        Nuc_labeled_im = NucSeg.predict(image[:,...,nuc_channel,None], image_mpp = resolution)
-        #Nuc_labeled_im2 = MesSeg.predict(image, image_mpp = resolution, compartment='nuclear')
+        if type == 'TC':
+            Nuc_labeled_im = NucSeg.predict(image[:,...,nuc_channel,None], image_mpp = resolution)
+        if type == 'tissue':
+            Nuc_labeled_im = MesSeg.predict(image, image_mpp = resolution, compartment='nuclear')
     else:
         Nuc_labeled_im = "no nuclear channel inputed"
 
@@ -67,7 +75,6 @@ def RunDeepCell(path,nuc_channel,cyto_channel,objective):
     elif os.path.isdir(path):
         outpath = str(path + '/')
 
-    print("Mask Files can be foun in this directory:", outpath)
     #write tif files with masks
     if nuc_channel >= 0:
         #tifffile.imwrite(str(outpath+'nuc_mask.tif'), Nuc_labeled_im)
@@ -76,5 +83,7 @@ def RunDeepCell(path,nuc_channel,cyto_channel,objective):
     if cyto_channel >= 0:
         tifffile.imwrite(str(outpath+'_cyto_mask.tif'), Cyto_labeled_im)
         #tifffile.imwrite(str(outpath+'mesmer_cyto_mask.tif'), Cyto_labeled_im2)
+
+    print("Mask Files can be foun in this directory:", outpath)
 
     return Nuc_labeled_im, Cyto_labeled_im
