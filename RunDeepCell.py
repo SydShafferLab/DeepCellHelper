@@ -1,5 +1,5 @@
 ##FILL FOLLOWING VARIABLES
-
+import glob
 #path do a single tif file or directory with multiple tif Files
 
 TIFS = glob.glob('/home/gharm/Scan_data/**/*.tif',recursive=True)
@@ -20,7 +20,7 @@ type = 'tissue'
 import time
 t0 = time.time()
 import os
-import glob
+
 os.chdir('/home/gharm/DeepCell/DeepCellHelper/')
 from Cyto_Nuc_DeepCell import RunDeepCell
 
