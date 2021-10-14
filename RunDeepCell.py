@@ -26,7 +26,7 @@ from Cyto_Nuc_DeepCell import RunDeepCell
 
 for tif in TIFS:
     print(tif)
-    RunDeepCell(tif,NucleusChannel,CytoplasmChannel,objective)
+    RunDeepCell(tif,NucleusChannel,CytoplasmChannel,objective,type)
 
 t1 = time.time()
 total = t1-t0
