@@ -1,5 +1,9 @@
-##FILL FOLLOWING VARIABLES
 import glob
+import os
+from dcHelper import tile_tif
+
+##FILL FOLLOWING VARIABLES
+
 #path do a single tif file or directory with multiple tif Files
 
 TIFS = glob.glob('/home/gharm/Scan_data/**/*.tif',recursive=True)
@@ -17,17 +21,22 @@ objective = '10x'
 type = 'tissue'
 
 
-import time
-t0 = time.time()
-import os
-
+# change this path to location ot DeepCellHelper
 os.chdir('/home/gharm/DeepCell/DeepCellHelper/')
+
+##SHOULD NOT NEED TO EDIT BELOW THIS
+
 from Cyto_Nuc_DeepCell import RunDeepCell
 
-for tif in TIFS:
-    print(tif)
-    RunDeepCell(tif,NucleusChannel,CytoplasmChannel,objective,type)
 
-t1 = time.time()
-total = t1-t0
-print(total)
+for tif in TIFS:
+    #subset tif file into tiles manageable for the GPU if image is larger than 10k by 10K pixels
+    tile_tif(tif)
+    tile_dir = os.path.dirname(tif)
+    tile_dir = str(tile_dir + '/*.tif')
+    TILES = glob.glob(tile_dir,recursive=True)
+
+    for tile in TILES:
+        RunDeepCell(tile,NucleusChannel,CytoplasmChannel,objective,type)
+
+    #put tiles back together
