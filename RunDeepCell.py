@@ -1,6 +1,5 @@
 import glob
 import os
-from dcHelper import tile_tif
 
 ##FILL FOLLOWING VARIABLES
 
@@ -27,16 +26,16 @@ os.chdir('/home/gharm/DeepCell/DeepCellHelper/')
 ##SHOULD NOT NEED TO EDIT BELOW THIS
 
 from Cyto_Nuc_DeepCell import RunDeepCell
+from dcHelper import tile_tif
 
+#for tif in TIFS:
+#    #subset tif file into tiles manageable for the GPU if image is larger than 10k by 10K pixels
+#    tile_tif(tif)
+#    tile_dir = os.path.dirname(tif)
+#    tile_dir = str(tile_dir + '/*.tif')
+#    TILES = glob.glob(tile_dir,recursive=True)
 
 for tif in TIFS:
-    #subset tif file into tiles manageable for the GPU if image is larger than 10k by 10K pixels
-    tile_tif(tif)
-    tile_dir = os.path.dirname(tif)
-    tile_dir = str(tile_dir + '/*.tif')
-    TILES = glob.glob(tile_dir,recursive=True)
-
-    for tile in TILES:
-        RunDeepCell(tile,NucleusChannel,CytoplasmChannel,objective,type)
+    RunDeepCell(tif,NucleusChannel,CytoplasmChannel,objective,type)
 
     #put tiles back together

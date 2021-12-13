@@ -98,7 +98,9 @@ def tile_tif(img_path):
         outdir = str(os.path.dirname(img_path) + '/tiled_tif/')
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-            
+
+        TILE_PATHS = []
+
         for i in range(tiles.shape[0]):
 
             #get rows
@@ -121,3 +123,5 @@ def tile_tif(img_path):
             tile = image[:,x:width,y:height]
             outpath = str(outdir + img_path.split("/")[-1].split('.tif')[0] + "_tile_" + str(i) + ".tif")
             imsave(outpath,tile)
+            TILE_PATHS.append(outpath)
+        return TILE_PATHS
