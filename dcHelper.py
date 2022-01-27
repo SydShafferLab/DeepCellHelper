@@ -45,6 +45,7 @@ def readTiffs(path,channels):
 
 
 #split up images into tiles that the GPU on the cluster can handle
+# some code taken from here: https://stackoverflow.com/questions/58383814/how-to-divide-an-image-into-evenly-sized-overlapping-if-needed-tiles
 
 def tile_tif(img_path):
 
