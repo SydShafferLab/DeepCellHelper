@@ -43,26 +43,18 @@ All you need to run deeptile should be in the RunDeeptile.ipynb. This section ru
 3. After installing these packages we import a few basic packages and add the path to the "packages" folder to the system so it can load the pakages we have saved on google drive.
 
 4. The next cell is where you input paths and setting for running deepcell. here is an overview of each:
-          -TIFS: here we use glob to get a list of all images (in tif format) you want to run deepcell on.
-          
-          -NucleusChannel: This is the channel of your image that contains images of nuclei you want to segment, input 0 if you do not want to segment nuclei.
-          
-          -CytoplasmChannel: This is the channel of your image that contains images of the cytoplasm you want to segment, input 0 if you do not want to segment the cytoplasm.
-          
-          -objective: This is the objective on the microscope used to take the images you are processing. The model uses this information to undertand how many um each pixed is for a given image. Note that the higher the magnification used to take the image the larger image/tileSize can be processed at once. as input here you can just say the objective name like '10x' or '20x', however this assums these images have been taken using he Shaffer Lab scope. If you used another microscope then you will need to go into the 'DeepTileFunc.py' and change the um per pixel value for each objective. Finally I have optimized this parameter for large scans of nuclei using a 10x objective on the Shaffer Lab scope. If this is the application you are using I suggest you use '10x_fast' as input here.
-          
-          -algorithm: This selects which model you want to use to segment your cells. Most of the time the 'deepcell_mesmer' model works the best (and segemnts nuclei and/or the cytoplasm), but you can also try 'deepcell_nuclear' to segment nuclei or 'deepcell_cytoplasm' to segment cytoplasms.
-          
-          -compartment: If you are using deepcell_mesmer you can specify if you want the model to segment the nucleus (enter: 'nuclear'), the cytoplasm (enter: 'whole_cell'), or both (enter: 'nuclear').
-          
-          -tileSize: Some images are too big for the deepcell model to take in so we need to break the image up inot tiles. The max tile size you can input depends on the hardware you are running this on, and on the objective used to take the image. One thing not to do is enter a tile size much bigger than your actual image size as this will just waste resources. With google colab pro to look at 10x images with the '10x_fast' objective I use 10000 as my tile size. you will have to do some trial and error to find the optimal tile size for your image.
-          
-          -Well: If the image you have cotains the boundary of a well the algorithm may call nuclei on the bright well boundary and outside the well. If you set this parameter to TRUE, an algorithm will try and find the edge of the well and then delete all masks outside the well boundary. If there is no well boundary or you do not want this functionality input FALSE.
-          
-          #### More Advanced settings:
-          
-          -DeepCellBatch: This is howmany small sections of a tile deepcell can process in parallel, the more gpu you have the higher the number you can use here.
-          -DeepTileBatch: This is how many tile are given to deepcell at any given time, more tiles at a time lets you run more tiles in parallel. I have found that this number is limited by system RAM. The more RAM you have the higer you can make this number.
+   - **TIFS:** here we use glob to get a list of all images (in tif format) you want to run deepcell on.
+   - **NucleusChannel:** This is the channel of your image that contains images of nuclei you want to segment, input 0 if you do not want to segment nuclei.
+   - **CytoplasmChannel:** This is the channel of your image that contains images of the cytoplasm you want to segment, input 0 if you do not want to segment the cytoplasm.
+   - **objective:** This is the objective on the microscope used to take the images you are processing. The model uses this information to undertand how many um each pixed is for a given image. Note that the higher the magnification used to take the image the larger image/tileSize can be processed at once. as input here you can just say the objective name like '10x' or '20x', however this assums these images have been taken using he Shaffer Lab scope. If you used another microscope then you will need to go into the 'DeepTileFunc.py' and change the um per pixel value for each objective. Finally I have optimized this parameter for large scans of nuclei using a 10x objective on the Shaffer Lab scope. If this is the application you are using I suggest you use '10x_fast' as input here.
+   - **algorithm:** This selects which model you want to use to segment your cells. Most of the time the 'deepcell_mesmer' model works the best (and segemnts nuclei and/or the cytoplasm), but you can also try 'deepcell_nuclear' to segment nuclei or 'deepcell_cytoplasm' to segment cytoplasms.
+   - **compartment:** If you are using deepcell_mesmer you can specify if you want the model to segment the nucleus (enter: 'nuclear'), the cytoplasm (enter: 'whole_cell'), or both (enter: 'nuclear').
+   - **tileSize:** Some images are too big for the deepcell model to take in so we need to break the image up inot tiles. The max tile size you can input depends on the hardware you are running this on, and on the objective used to take the image. One thing not to do is enter a tile size much bigger than your actual image size as this will just waste resources. With google colab pro to look at 10x images with the '10x_fast' objective I use 10000 as my tile size. you will have to do some trial and error to find the optimal tile size for your image.
+   - **Well:** If the image you have cotains the boundary of a well the algorithm may call nuclei on the bright well boundary and outside the well. If you set this parameter to TRUE, an algorithm will try and find the edge of the well and then delete all masks outside the well boundary. If there is no well boundary or you do not want this functionality input FALSE.
+  
+     ### **More Advanced settings:**
+   - **DeepCellBatch:** This is howmany small sections of a tile deepcell can process in parallel, the more gpu you have the higher the number you can use here.
+   - **DeepTileBatch:** This is how many tile are given to deepcell at any given time, more tiles at a time lets you run more tiles in parallel. I have found that this number is limited by system RAM. The more RAM you have the higer you can make this number.
           
 5. Once you have entered all these parameter run the code cell to save them all and load in the RunDeepTile function.
 
