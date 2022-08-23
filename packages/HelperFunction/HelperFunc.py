@@ -33,9 +33,10 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
     resolution = RESOLUTIONS[objective]
 
     # Create DeepTile object
-    dt = deeptile.load(path, link_data=False)
+    image = tifffile.imread(path)
+    dt = deeptile.load(image, link_data=False)
 
-     #load image in proper configuration (not tested)
+     #load image in proper configuration
     if len(dt.image.shape) == 3:
         dt.image= dt.image[channels,...]
         dt.image = np.squeeze(dt.image)
@@ -47,6 +48,9 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
     tile_size = (tileSize, tileSize)
     overlap = (0.1, 0.1)
     tiles = dt.get_tiles(tile_size, overlap)
+    #now that image in tiles remove it to save on memory usuage
+    del(image)
+    gc.collect()
 
     #add second image if necessary for deepcell compatibility
     if nuc_channel < 0:
@@ -62,7 +66,7 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
     eval_parameters = {'image_mpp' : resolution, 'compartment' : type , 'batch_size' : DeepCellBatch}
     func_process = segmentation.deepcell_mesmer_segmentation(model_parameters, eval_parameters)
     masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
-    mask = dt.stitch(masks.s[0], stitch.stitch_masks())
+    mask = dt.stitch(masks, stitch.stitch_masks())
 
     if len(mask.shape) < 3:
         mask = mask[np.newaxis,...]
