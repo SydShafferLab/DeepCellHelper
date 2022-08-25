@@ -11,7 +11,7 @@ from deeptile.core.algorithms import transform
 
 # Run cell using DeepTile (new version)
 
-def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=10000,Well=False,DeepCellBatch=30,DeepTileBatch=1):
+def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,tileSize=10000,Well=False,DeepCellBatch=30,DeepTileBatch=1):
     start = time.time()
     #redifine channels for 0 index
     nuc_channel = nuc_channel-1
@@ -43,30 +43,74 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
     elif len(dt.image.shape) == 4:
         dt.image = dt.image[channels,...,0]
         dt.image = np.squeeze(dt.image)
+    else:
+      pass
 
     #generate tiles
     tile_size = (tileSize, tileSize)
     overlap = (0.1, 0.1)
     tiles = dt.get_tiles(tile_size, overlap)
-    #now that image in tiles remove it to save on memory usuage
-    del(image)
-    gc.collect()
 
     #add second image if necessary for deepcell compatibility
-    if nuc_channel < 0:
-        if len(channels) == 1:
-            tiles = np.stack((np.zeros_like(tiles), tiles))
-    elif cyto_channel < 0:
-        if len(channels) == 1 :
-            tiles = np.stack((tiles, np.zeros_like(tiles)))
+    if algorithm == 'tissue':
+      if nuc_channel < 0:
+          if len(channels) == 1:
+              tiles = np.stack((np.zeros_like(tiles), tiles))
+      elif cyto_channel < 0:
+          if len(channels) == 1 :
+              tiles = np.stack((tiles, np.zeros_like(tiles)))
 
 
     # Segment tiles and stitch
-    model_parameters = {}
-    eval_parameters = {'image_mpp' : resolution, 'compartment' : type , 'batch_size' : DeepCellBatch}
-    func_process = segmentation.deepcell_mesmer_segmentation(model_parameters, eval_parameters)
-    masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
-    mask = dt.stitch(masks, stitch.stitch_masks())
+
+    #for Mesmer
+    if algorithm == 'tissue' and compartment != 'nuc_cyto':
+        print("segmenting with the tissue trained model")
+        model_parameters = {}
+        eval_parameters = {'image_mpp' : resolution, 'compartment' : compartment , 'batch_size' : DeepCellBatch}
+        func_process = segmentation.deepcell_mesmer_segmentation(model_parameters, eval_parameters)
+        masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+        mask = dt.stitch(masks, stitch.stitch_masks())
+
+    #segement nuclei with mesmer and cytoplasm with cytoplasm segmenter
+    elif algorithm == 'tissue' and compartment == 'nuc_cyto':
+        print("segmenting nuclei with the tissue trained model and the cytoplasm with the TC trained model")
+        model_parameters = {}
+        eval_parameters = {'image_mpp' : resolution, 'compartment' : 'nuclear' , 'batch_size' : DeepCellBatch}
+        func_process = segmentation.deepcell_mesmer_segmentation(model_parameters, eval_parameters)
+        masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+        nuc_mask = dt.stitch(masks, stitch.stitch_masks())[0,...]
+
+        dt = deeptile.load(image[1,...], link_data=False)
+        tiles = dt.get_tiles(tile_size, overlap)
+        tiles[0,0].shape
+        eval_parameters = {'image_mpp' : resolution , 'batch_size' : DeepCellBatch}
+        func_process = segmentation.deepcell_cytoplasm_segmentation(model_parameters, eval_parameters)
+        masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+        cyto_mask = dt.stitch(masks, stitch.stitch_masks())
+        print('cyto_mask: '+ str(cyto_mask.shape))
+        mask = np.stack((cyto_mask,nuc_mask))
+
+    elif algorithm == 'TC':
+        if nuc_channel >= 0 and cyto_channel < 0:
+            print("segmenting nuclei with the TC trained model")
+            model_parameters = {}
+            eval_parameters = {'image_mpp' : resolution , 'batch_size' : DeepCellBatch}
+            func_process = segmentation.deepcell_nuclear_segmentation(model_parameters, eval_parameters)
+            masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+            mask = dt.stitch(masks, stitch.stitch_masks())
+
+        elif cyto_channel >= 0 and nuc_channel < 0:
+            print("segmenting cytoplasm with the TC trained model")
+            model_parameters = {}
+            eval_parameters = {'image_mpp' : resolution , 'batch_size' : DeepCellBatch}
+            func_process = segmentation.deepcell_cytoplasm_segmentation(model_parameters, eval_parameters)
+            masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+            mask = dt.stitch(masks, stitch.stitch_masks())
+
+        else:
+            print("ERROR: When using TC segementation you can only segement the cytoplasm or the nucleus (one channel should be set to 0)")
+
 
     if len(mask.shape) < 3:
         mask = mask[np.newaxis,...]
@@ -90,9 +134,6 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
       # resize image
       image = cv2.resize(image, dsize)
       maxRadius = round(max(image.shape)/1.5)
-      print(image.shape)
-      print(max(image.shape))
-      print(maxRadius)
       minRadius = round(max(image.shape)/4)
       minDist = round(max(image.shape))
       downSize = 10
@@ -122,7 +163,7 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
       gc.collect()
 
       if circles is None:
-          print ('No Well found found')
+          print('No Well found found')
 
       elif len(circles) > 1:
           print("could not define well")
@@ -134,7 +175,10 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
           scale_r = np.round(r/(scale_percent/100)).astype("int")
 
       if nuc_channel >= 0:
-          nuc_mask = mask[0,...]
+          if cyto_channel >= 0:
+              nuc_mask = mask[1,...]
+          else:
+              nuc_mask = mask[0,...]
           nrows, ncols = nuc_mask.shape
           rows, cols = np.ogrid[:nrows, :ncols]
           outer_disk_mask = ((rows - scale_x)**2 + (cols - scale_y)**2 > scale_r**2)
@@ -145,10 +189,15 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
           sidx = keys.argsort()
           ks = keys[sidx]
           vs = values[sidx]
-          mask[0,...] = vs[np.searchsorted(ks,nuc_mask)]
+
+          if cyto_channel >= 0:
+              mask[1,...] = vs[np.searchsorted(ks,nuc_mask)]
+          else:
+              mask[0,...] = vs[np.searchsorted(ks,nuc_mask)]
+
 
       if cyto_channel >= 0:
-          cyto_mask = mask[1,...]
+          cyto_mask = mask[0,...]
           nrows, ncols = cyto_mask.shape
           rows, cols = np.ogrid[:nrows, :ncols]
           outer_disk_mask = ((rows - scale_x)**2 + (cols - scale_y)**2 > scale_r**2)
@@ -159,17 +208,18 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,type,tileSize=
           sidx = keys.argsort()
           ks = keys[sidx]
           vs = values[sidx]
-          mask[1,...] = vs[np.searchsorted(ks,cyto_mask)]
+          mask[0,...] = vs[np.searchsorted(ks,cyto_mask)]
 
     #define outpath
     outpath =  path.split('.tif')[0]
-
     #write tif files with masks
     if nuc_channel >= 0:
-        tifffile.imwrite(str(outpath + "_"+ algorithm + '_nuc_mask.tif'), np.uint32(mask[0,...]))
-
+        if cyto_channel >= 0:
+            tifffile.imwrite(str(outpath + '_' + algorithm +  '_nuc_mask.tif'), np.uint32(mask[1,...]))
+        else:
+            tifffile.imwrite(str(outpath + '_' + algorithm + '_nuc_mask.tif'), np.uint32(mask[0,...]))
     if cyto_channel >= 0:
-        tifffile.imwrite(str(outpath + "_"+ algorithm +'_cyto_mask.tif'), np.uint32(mask[1,...]))
+            tifffile.imwrite(str(outpath + '_' + algorithm + '_cyto_mask.tif'), np.uint32(mask[0,...]))
 
     print("Mask Files can be found in this directory:", outpath)
 
