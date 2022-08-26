@@ -11,7 +11,7 @@ from deeptile.core.algorithms import transform
 
 # Run cell using DeepTile (new version)
 
-def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,tileSize=10000,Well=False,DeepCellBatch=30,DeepTileBatch=1):
+def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,diameter,tileSize=10000,Well=False,DeepCellBatch=30,DeepTileBatch=1):
     start = time.time()
     #redifine channels for 0 index
     nuc_channel = nuc_channel-1
@@ -22,6 +22,8 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,ti
         channels = [cyto_channel]
     elif cyto_channel < 0:
         channels = [nuc_channel]
+    elif algorithm == 'cellpose':
+        channels = [cyto_channel,nuc_channel]
     else:
         channels = [nuc_channel,cyto_channel]
 
@@ -31,6 +33,7 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,ti
     # Set Parmeters
     RESOLUTIONS = {'4x':3.25, '4X':3.25 ,'10x':1.3, '10X':1.3, '10x_fast': .75, '10X_fast': .75 ,'20x':.5,'20X':.5, '60x':.2167, '60X':.2167,'100x':.13,'100X':.13}
     resolution = RESOLUTIONS[objective]
+
 
     # Create DeepTile object
     image = tifffile.imread(path)
@@ -81,16 +84,29 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,ti
         masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
         nuc_mask = dt.stitch(masks, stitch.stitch_masks())[0,...]
 
-        dt = deeptile.load(image[1,...], link_data=False)
-        tiles = dt.get_tiles(tile_size, overlap)
-        tiles[0,0].shape
-        eval_parameters = {'image_mpp' : resolution , 'batch_size' : DeepCellBatch}
-        func_process = segmentation.deepcell_cytoplasm_segmentation(model_parameters, eval_parameters)
+        #dt = deeptile.load(image[1,...], link_data=False)
+        #tiles = dt.get_tiles(tile_size, overlap)
+        #tiles[0,0].shape
+        #eval_parameters = {'image_mpp' : resolution , 'batch_size' : DeepCellBatch}
+        #func_process = segmentation.deepcell_cytoplasm_segmentation(model_parameters, eval_parameters)
+        #masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
+        #cyto_mask = dt.stitch(masks, stitch.stitch_masks())
+        #print('cyto_mask: '+ str(cyto_mask.shape))
+        #mask = np.stack((cyto_mask,nuc_mask))
+    elif algorithm == 'cellpose':
+        #translate to cellpose compartment names
+        CP_COMPARTMENT = {'nuclear':'nuclei', 'cytoplasm':'cyto2', 'cyto':'cyto'}
+        print(compartment)
+        cp_compartment = CP_COMPARTMENT[compartment]
+        print(cp_compartment)
+        #run cellpose
+        model_parameters = {'gpu': True, 'model_type': cp_compartment}
+        eval_parameters = {'diameter': diameter}
+        func_process = segmentation.cellpose_segmentation(model_parameters, eval_parameters)
         masks = dt.process(tiles, func_process, batch_size = DeepTileBatch)
-        cyto_mask = dt.stitch(masks, stitch.stitch_masks())
-        print('cyto_mask: '+ str(cyto_mask.shape))
-        mask = np.stack((cyto_mask,nuc_mask))
-
+        mask = dt.stitch(masks, stitch.stitch_masks())
+        print("end" + str(mask.shape))
+        print(len(mask.shape))
     elif algorithm == 'TC':
         if nuc_channel >= 0 and cyto_channel < 0:
             print("segmenting nuclei with the TC trained model")
@@ -109,7 +125,7 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,ti
             mask = dt.stitch(masks, stitch.stitch_masks())
 
         else:
-            print("ERROR: When using TC segementation you can only segement the cytoplasm or the nucleus (one channel should be set to 0)")
+          print("ERROR: When using TC segementation you can only segement the cytoplasm or the nucleus (one channel should be set to 0)")
 
 
     if len(mask.shape) < 3:
@@ -214,12 +230,16 @@ def RunDeepTile(path,nuc_channel,cyto_channel,objective,algorithm,compartment,ti
     outpath =  path.split('.tif')[0]
     #write tif files with masks
     if nuc_channel >= 0:
-        if cyto_channel >= 0:
+        if cyto_channel >= 0 and mask.shape[0] >= 2:
             tifffile.imwrite(str(outpath + '_' + algorithm +  '_nuc_mask.tif'), np.uint32(mask[1,...]))
-        else:
+        elif cyto_channel < 0 and mask.shape[0] >= 2:
             tifffile.imwrite(str(outpath + '_' + algorithm + '_nuc_mask.tif'), np.uint32(mask[0,...]))
-    if cyto_channel >= 0:
-            tifffile.imwrite(str(outpath + '_' + algorithm + '_cyto_mask.tif'), np.uint32(mask[0,...]))
+        else:
+            tifffile.imwrite(str(outpath + '_' + algorithm + '_mask.tif'), np.uint32(mask))
+    if cyto_channel >= 0 and mask.shape[0] >= 2:
+        tifffile.imwrite(str(outpath + '_' + algorithm + '_cyto_mask.tif'), np.uint32(mask[0,...]))
+    else:
+        tifffile.imwrite(str(outpath + '_' + algorithm + '_mask.tif'), np.uint32(mask))
 
     print("Mask Files can be found in this directory:", outpath)
 
